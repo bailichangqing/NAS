@@ -45,3 +45,5 @@ Issues:
 7. Julia does not support static declaration. To emulate static declaration in C code, I use global keyword.
 
 8. Should I follow the convention in julia that if a function's name ends with !,it means this function will modify the parameters.
+
+9. Should I use isdefined() function to represent #ifdef ?

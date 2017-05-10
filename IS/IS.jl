@@ -106,21 +106,6 @@ TEST_ARRAY_SIZE = 5
 #/* Enable separate communication,  */
 #/* computation timing and printout */
 #/***********************************/
-#define  TIMING_ENABLED
-#ifdef NO_MTIMERS
-#undef TIMINIG_ENABLED
-#define TIMER_START( x )
-#define TIMER_STOP( x )
-#else
-#define TIMER_START( x ) if (timeron) timer_start( x )
-#define TIMER_STOP( x ) if (timeron) timer_stop( x )
-#define T_TOTAL  0
-#define T_RANK   1
-#define T_RCOMM  2
-#define T_VERIFY 3
-#define T_LAST   3
-#endif
-#int timeron;
 TIMING_ENABLED = 0
 if isdefined(:NO_MTIMERS) == true
   TIMING_ENABLED = -1
@@ -128,9 +113,9 @@ end
 timeron = 0
 function TIMER_START(x)
   global timeron,NO_MTIMERS
-  if(TIMING_ENABLED == -1)
+  if TIMING_ENABLED == -1
   else
-    if timeron
+    if timeron == 1
       timer_start(x)#TODO
     end
   end
@@ -140,7 +125,7 @@ function TIMER_STOP(x)
   global timeron,NO_MTIMERS
   if(TIMING_ENABLED == -1)
   else
-    if timeron
+    if timeron == 1
       timer_stop(x)#TODO
     end
   end
@@ -153,49 +138,34 @@ if TIMING_ENABLED == 0
   T_LAST = 3
 end
 
+
 #/*************************************/
 #/* Typedef: if necessary, change the */
 #/* size of int here by changing the  */
 #/* int type to, say, long            */
 #/*************************************/
-#typedef  int  INT_TYPE;
-#typedef  long INT_TYPE2;
-#define MP_KEY_TYPE MPI_INT
+
+
 
 #/********************/
 #/* MPI properties:  */
 #/********************/
-#int      my_rank,
-#         comm_size;
 my_rank = 0
 comm_size = 0
 
 #/********************/
 #/* Some global info */
 #/********************/
-#INT_TYPE *key_buff_ptr_global,         /* used by full_verify to get */
-#         total_lesser_keys;
-#int      passed_verification;
 
-key_buff_ptr_global = 0
-total_lesser_keys = 0
+
+key_buff_ptr_global = 0       # used by full_verify to get
+total_lesser_keys = 0         # copies of rank info
 passed_verification = 0
 
 #/************************************/
 #/* These are the three main arrays. */
 #/* See SIZE_OF_BUFFERS def above    */
 #/************************************/
-#INT_TYPE key_array[SIZE_OF_BUFFERS],
-#         key_buff1[SIZE_OF_BUFFERS],
-#         key_buff2[SIZE_OF_BUFFERS],
-#         bucket_size[NUM_BUCKETS+TEST_ARRAY_SIZE],     /* Top 5 elements for */
-#         bucket_size_totals[NUM_BUCKETS+TEST_ARRAY_SIZE], /* part. ver. vals */
-#         bucket_ptrs[NUM_BUCKETS],
-#         process_bucket_distrib_ptr1[NUM_BUCKETS+TEST_ARRAY_SIZE],
-#         process_bucket_distrib_ptr2[NUM_BUCKETS+TEST_ARRAY_SIZE];
-#int      send_count[MAX_PROCS], recv_count[MAX_PROCS],
-#         send_displ[MAX_PROCS], recv_displ[MAX_PROCS];
-#println(typeof(SIZE_OF_BUFFERS),typeof(NUM_KEYS),typeof(TOTAL_KEYS),typeof(NUM_PROCS),typeof(MIN_PROCS))
 key_array = Array{Int32}(SIZE_OF_BUFFERS)
 key_buff1 = Array{Int32}(SIZE_OF_BUFFERS)
 key_buff2 = Array{Int32}(SIZE_OF_BUFFERS)
