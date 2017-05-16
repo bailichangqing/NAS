@@ -7,3 +7,11 @@
            c_print_results function
            complete main function
            review array operations
+
+5/15 key_buff2 is used to receive keys using MPI.Alltoallv(). In julia receive buffer is created automatically.
+     The problem is real size of the buffer could be smaller than the size declared in C language. In order to
+     run the program, I use a key_buff2buf to store keys got from MPI.Alltoallv and then copy the elements of it
+     into key_buff2. For performance, I should check whether I can directly use key_buff2 to receive keys from
+     MPI.Alltoallv()
+
+     timeron need to be broadcast by process 0. So in main function, timeron is declared as global

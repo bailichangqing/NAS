@@ -485,8 +485,8 @@ function rank(iteration)
 
   #  Iteration alteration of keys
   if(my_rank == 0 )
-    key_array[iteration + 1] = iteration;
-    key_array[iteration + MAX_ITERATIONS + 1] = MAX_KEY - iteration;
+    key_array[iteration] = iteration;
+    key_array[iteration + MAX_ITERATIONS] = MAX_KEY - iteration;
   end
 
 
@@ -590,11 +590,10 @@ function rank(iteration)
 
   # This is the redistribution section:  first find out how many keys
   #    each processor will send to every other processor:
-  MPI.Alltoall(send_count,
-               1,
-               recv_count,
-               1,
-               MPI.COMM_WORLD)
+  recv_countbuf = MPI.Alltoall(send_count,1,MPI.COMM_WORLD)
+  for i = 1:length(recv_countbuf)
+    recv_count[i] = recv_countbuf[i]
+  end
 
   # Determine the receive array displacements for the buckets
   recv_displ[1] = 0
@@ -604,13 +603,13 @@ function rank(iteration)
 
 
   # Now send the keys to respective processors
-  MPI.Alltoallv(key_buff1,
-                send_count,
-                send_displ,
-                key_buff2,
-                recv_count,
-                recv_displ,
-                MPI.COMM_WORLD)
+  key_buff2buff = MPI.Alltoallv(key_buff1,
+                                send_count,
+                                recv_count,
+                                MPI.COMM_WORLD)
+  for i = 1:length(key_buff2buff)     #maybe should be deleted later
+    key_buff2[i] = key_buff2buff[i]
+  end
 
   TIMER_STOP( T_RCOMM )
   TIMER_START( T_RANK )
@@ -674,7 +673,7 @@ function rank(iteration)
     k = bucket_size_totals[i+NUM_BUCKETS]     # Keys were hidden here
     if min_key_val <= k  &&  k <= max_key_val
       # Add the total of lesser keys, m, here
-      key_rank = key_buff_ptr[k-1] + m
+      key_rank = key_buff_ptr[k] + m
       failed = 0
 
       if CLASS == 'S'
@@ -691,7 +690,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS = 'W'
+      elseif CLASS == 'W'
         if i < 3
           if key_rank != test_rank_array[i]+(iteration-2)
             failed = 1
@@ -705,7 +704,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS = 'A'
+      elseif CLASS == 'A'
         if i <= 3
           if key_rank != test_rank_array[i]+(iteration-1)
             failed = 1
@@ -733,7 +732,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS = 'C'
+      elseif CLASS == 'C'
         if i <= 3
           if key_rank != test_rank_array[i]+iteration
             failed = 1
@@ -747,7 +746,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS = 'D'
+      elseif CLASS == 'D'
         if i < 3
           if key_rank != test_rank_array[i]+iteration
             failed = 1
@@ -790,6 +789,7 @@ end
 #*****************************************************************
 
 function main()
+  global timeron
   i = 0
   iteration = 0
   itemp = 0
@@ -800,7 +800,7 @@ function main()
 # Initialize MPI
   MPI.Init()
   my_rank = MPI.Comm_rank(MPI.COMM_WORLD)
-  comm_size = MPI.comm_size(MPI.COMM_WORLD)
+  comm_size = MPI.Comm_size(MPI.COMM_WORLD)
 
 
 # Initialize the verification arrays if a valid class
@@ -814,13 +814,13 @@ function main()
     elseif CLASS == 'W'
       test_index_array[i] = W_test_index_array[i]
       test_rank_array[i]  = W_test_rank_array[i]
-    elseif CLASS = 'B'
+    elseif CLASS == 'B'
       test_index_array[i] = B_test_index_array[i]
       test_rank_array[i]  = B_test_rank_array[i]
-    elseif CLASS = 'C'
+    elseif CLASS == 'C'
       test_index_array[i] = C_test_index_array[i]
       test_rank_array[i]  = C_test_rank_array[i]
-    elseif CLASS = 'D'
+    elseif CLASS == 'D'
       test_index_array[i] = D_test_index_array[i]
       test_rank_array[i]  = D_test_rank_array[i]
     end
@@ -866,7 +866,7 @@ function main()
     exit(1)
   end
 
-  MPI.Bcast(timeron, 0, MPI.COMM_WORLD)
+  timeron = MPI.bcast(timeron, 0, MPI.COMM_WORLD)
 
   if TIMING_ENABLED == 0
     for i = 1:T_LAST
@@ -886,7 +886,7 @@ function main()
 # Do one interation for free (i.e., untimed) to guarantee initialization of
 # all data and code pages and respective tables
   rank(1)
-
+#=
 # Start verification counter
   passed_verification = 0;
   if my_rank == 0 && CLASS != 'S'
@@ -981,6 +981,7 @@ function main()
       end
     end
   end
+  =#
   MPI.Finalize()
 
   return 0
@@ -999,7 +1000,8 @@ end
 
 
 
-
+TIMING_ENABLED = -1
+main()
 
 
 
