@@ -167,23 +167,37 @@ passed_verification = 0
 #/* See SIZE_OF_BUFFERS def above    */
 #/************************************/
 key_array = Array{Int32}(SIZE_OF_BUFFERS)
+fill!(key_array,0)
 key_buff1 = Array{Int32}(SIZE_OF_BUFFERS)
+fill!(key_buff1,0)
 key_buff2 = Array{Int32}(SIZE_OF_BUFFERS)
+fill!(key_buff2,0)
 bucket_size = Array{Int32}(NUM_BUCKETS+TEST_ARRAY_SIZE)
+fill!(bucket_size,0)
 bucket_size_totals = Array{Int32}(NUM_BUCKETS+TEST_ARRAY_SIZE)
+fill!(bucket_size_totals,0)
 bucket_ptrs = Array{Int32}(NUM_BUCKETS)
+fill!(bucket_ptrs,0)
 process_bucket_distrib_ptr1 = Array{Int32}(NUM_BUCKETS+TEST_ARRAY_SIZE)
+fill!(process_bucket_distrib_ptr1,0)
 process_bucket_distrib_ptr2 = Array{Int32}(NUM_BUCKETS+TEST_ARRAY_SIZE)
+fill!(process_bucket_distrib_ptr2,0)
 send_count = Array{Int32}(MAX_PROCS)
+fill!(send_count,0)
 recv_count = Array{Int32}(MAX_PROCS)
+fill!(recv_count,0)
 send_displ = Array{Int32}(MAX_PROCS)
+fill!(send_displ,0)
 recv_displ = Array{Int32}(MAX_PROCS)
+fill!(recv_displ,0)
 
 #/**********************/
 #/* Partial verif info */
 #/**********************/
 test_index_array = Array{Int64}(TEST_ARRAY_SIZE)
+fill!(test_index_array,0)
 test_rank_array = Array{Int64}(TEST_ARRAY_SIZE)
+fill!(test_rank_array,0)
 
 S_test_index_array = Int64[48427,17148,23627,62548,4431]
 S_test_rank_array = Int64[0,18,346,64917,65463]
@@ -485,10 +499,13 @@ function rank(iteration)
 
   #  Iteration alteration of keys
   if(my_rank == 0 )
-    key_array[iteration] = iteration;
-    key_array[iteration + MAX_ITERATIONS] = MAX_KEY - iteration;
+    key_array[iteration + 1] = iteration;
+    key_array[iteration + MAX_ITERATIONS + 1] = MAX_KEY - iteration;
   end
-
+  for i = 1:SIZE_OF_BUFFERS
+    @printf("%d\n",key_array[i])
+  end
+  exit(0)
 
   #  Initialize
   for i = 1:NUM_BUCKETS+TEST_ARRAY_SIZE
