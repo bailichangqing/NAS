@@ -1,4 +1,7 @@
 import MPI
+include("c_timers.jl")
+include("c_print_results.jl")
+
 
 #/******************/
 #/* default values */
@@ -116,7 +119,7 @@ function TIMER_START(x)
   if TIMING_ENABLED == -1
   else
     if timeron == 1
-      timer_start(x)#TODO
+      timer_start(x)
     end
   end
 end
@@ -126,7 +129,7 @@ function TIMER_STOP(x)
   if(TIMING_ENABLED == -1)
   else
     if timeron == 1
-      timer_stop(x)#TODO
+      timer_stop(x)
     end
   end
 end
@@ -156,6 +159,9 @@ comm_size = 0
 #/********************/
 #/* Some global info */
 #/********************/
+total_local_keys = 0
+total_lesser_keys = 0
+key_buff_ptr_global = 0
 
 
 key_buff_ptr_global = 0       # used by full_verify to get
@@ -417,6 +423,15 @@ end
 
 
 function full_verify()
+  #MYTEST
+  #=
+  for i = 1:MAX_PROCS
+    @printf("%d\n",send_displ[i])
+  end
+  exit(0)
+  =#
+
+  global passed_verification,total_local_keys,total_lesser_keys
   i::Int32 = 0
   j::Int32 = 0
   k = Array(Int32,1)
@@ -426,53 +441,54 @@ function full_verify()
 
   #/*  Now, finally, sort the keys:  */
   for i = 1:total_local_keys
-    key_buff_ptr_global[key_buff2[i]] -= 1
-    key_array[key_buff_ptr_global[key_buff2[i]] - total_lesser_keys] = key_buff2[i]
-    last_local_key = (total_local_keys<1)? 1 : (total_local_keys);  #problem
+    key_buff_ptr_global[key_buff2[i] + 1] -= 1
+    key_array[key_buff_ptr_global[key_buff2[i] + 1] - total_lesser_keys] = key_buff2[i]
+  end
+  last_local_key = (total_local_keys<1)? 1 : (total_local_keys);  #problem
 
-    #/*  Send largest key value to next processor  */
-    if my_rank > 0
-      request = MPI_Irecv(k,
-                          my_rank - 1,
-                          1000,
-                          MPI.COMM_WORLD)
-    end
-    if my_rank < comm_size - 1
-      MPI.Send([key_array[last_local_key]],
-                my_rank + 1,
-                1000,
-                MPI.COMM_WORLD)
-    end
-    if(my_rank > 0)
-      status = MPI.Wait!(request)
-    end
+
+  #/*  Send largest key value to next processor  */
+  if my_rank > 0
+    request = MPI_Irecv(k,
+                        my_rank - 1,
+                        1000,
+                        MPI.COMM_WORLD)
+  end
+  if my_rank < comm_size - 1
+    MPI.Send([key_array[last_local_key]],
+              my_rank + 1,
+              1000,
+              MPI.COMM_WORLD)
+  end
+  if(my_rank > 0)
+    status = MPI.Wait!(request)
+  end
 
 #    /*  Confirm that neighbor's greatest key value
 #        is not greater than my least key value       */
-    j = 0
-    if(my_rank > 0 && total_local_keys > 0)
-      if(k > key_array[1])
-        j += 1
-      end
+  j = 0
+  if(my_rank > 0 && total_local_keys > 0)
+    if(k > key_array[1])
+      j += 1
     end
+  end
 
 
 #    /*  Confirm keys correctly sorted: count incorrectly sorted keys, if any */
-    for i = 2:total_local_keys
-      if(key_array[i - 1] > key_array[i])
-        j += 1
-      end
+  for i = 2:total_local_keys
+    if(key_array[i - 1] > key_array[i])
+      j += 1
     end
-
-    if(j != 0)
-      @printf( "Processor %d:  Full_verify: number of keys out of sort: %d\n",
-              my_rank, j );
-    else
-      passed_verification += 1
-    end
-
-    TIMER_STOP( T_VERIFY );
   end
+
+  if(j != 0)
+    @printf( "Processor %d:  Full_verify: number of keys out of sort: %d\n",
+            my_rank, j );
+  else
+    passed_verification += 1
+  end
+
+  TIMER_STOP( T_VERIFY );
 end
 
 
@@ -482,6 +498,7 @@ end
 
 
 function rank(iteration)
+  global passed_verification
   i = 0
   k = 0
   shift = MAX_KEY_LOG_2 - NUM_BUCKETS_LOG_2
@@ -502,11 +519,13 @@ function rank(iteration)
     key_array[iteration + 1] = iteration;
     key_array[iteration + MAX_ITERATIONS + 1] = MAX_KEY - iteration;
   end
+  #MYTEST
+  #=
   for i = 1:SIZE_OF_BUFFERS
     @printf("%d\n",key_array[i])
   end
   exit(0)
-
+  =#
   #  Initialize
   for i = 1:NUM_BUCKETS+TEST_ARRAY_SIZE
     bucket_size[i] = 0;
@@ -525,25 +544,45 @@ function rank(iteration)
   end
 
 
+
   # Determine the number of keys in each bucket
   for i = 1:NUM_KEYS
     bucket_size[key_array[i] >> shift + 1] += 1;
   end
 
+  #MYTEST
+  #=
+  for i = 1:NUM_BUCKETS+TEST_ARRAY_SIZE
+    @printf("%d\n",bucket_size[i])
+  end
+  exit(0)
+  =#
 
   # Accumulative bucket sizes are the bucket pointers
   bucket_ptrs[1] = 0;
   for i = 2:NUM_BUCKETS
     bucket_ptrs[i] = bucket_ptrs[i-1] + bucket_size[i-1]
   end
-
+  #MYTEST
+  #=
+  for i = 1:NUM_BUCKETS
+    @printf("%d\n",bucket_ptrs[i])
+  end
+  exit(0)
+  =#
 
   # Sort into appropriate bucket
   for i = 1:NUM_KEYS
     key = key_array[i]
-    key_buff1[(bucket_ptrs[key >> shift + 1] += 1) + 1] = key
+    key_buff1[(bucket_ptrs[key >> shift + 1] += 1)] = key
   end
-
+  #MYTEST
+  #=
+  for i = 1:SIZE_OF_BUFFERS
+    @printf("%d\n",key_buff1[i])
+  end
+  exit(0)
+  =#
 
   TIMER_STOP( T_RANK )
   TIMER_START( T_RCOMM )
@@ -555,6 +594,13 @@ function rank(iteration)
                  MPI.SUM,
                  MPI.COMM_WORLD)
 
+  #MYTEST
+  #=
+  for i = 1:NUM_BUCKETS+TEST_ARRAY_SIZE
+    @printf("%d\n",bucket_size_totals[i])
+  end
+  exit(0)
+  =#
   TIMER_STOP( T_RCOMM )
   TIMER_START( T_RANK )
 
@@ -587,11 +633,18 @@ function rank(iteration)
         send_displ[j] = send_displ[j-1] + send_count[j-1]
         process_bucket_distrib_ptr1[j] = process_bucket_distrib_ptr2[j-1]+1
       end
-      process_bucket_distrib_ptr2[j] = i
+      process_bucket_distrib_ptr2[j] = i - 1
       j += 1
       local_bucket_sum_accumulator = 0
     end
   end
+  #MYTEST
+  #=
+  for i = 1:NUM_BUCKETS+TEST_ARRAY_SIZE
+    @printf("%d\n",process_bucket_distrib_ptr1[i])
+  end
+  exit(0)
+  =#
 
   # When NUM_PROCS approaching NUM_BUCKETS, it is highly possible
   # that the last few processors don't get any buckets.  So, we
@@ -601,6 +654,13 @@ function rank(iteration)
     process_bucket_distrib_ptr1[j] = 1
     j += 1
   end
+  #MYTEST
+  #=
+  for i = 1:MAX_PROCS
+    @printf("%d\n",send_count[i])
+  end
+  exit(0)
+  =#
 
   TIMER_STOP( T_RANK )
   TIMER_START( T_RCOMM )
@@ -611,6 +671,13 @@ function rank(iteration)
   for i = 1:length(recv_countbuf)
     recv_count[i] = recv_countbuf[i]
   end
+  #MYTEST
+  #=
+  for i = 1:length(recv_count)
+    @printf("%d\n",recv_count[i])
+  end
+  exit(0)
+  =#
 
   # Determine the receive array displacements for the buckets
   recv_displ[1] = 0
@@ -627,6 +694,13 @@ function rank(iteration)
   for i = 1:length(key_buff2buff)     #maybe should be deleted later
     key_buff2[i] = key_buff2buff[i]
   end
+  #MYTEST
+  #=
+  for i = 1:length(key_buff2)
+    @printf("%d\n",key_buff2[i])
+  end
+  exit(0)
+  =#
 
   TIMER_STOP( T_RCOMM )
   TIMER_START( T_RANK )
@@ -637,11 +711,25 @@ function rank(iteration)
   # key on each processor
   min_key_val = process_bucket_distrib_ptr1[my_rank + 1] << shift;
   max_key_val = ((process_bucket_distrib_ptr2[my_rank + 1] + 1) << shift)-1
+  #MYTEST
+  #=
+  #@printf("%d\n",process_bucket_distrib_ptr2[my_rank + 1] + 1)
+  @printf("%d\n",min_key_val)
+  @printf("%d\n",max_key_val)
+  exit(0)
+  =#
 
   # Clear the work array
   for i = 1:max_key_val-min_key_val+1
     key_buff1[i] = 0
   end
+  #MYTEST
+  #=
+  for i = 1:length(key_buff1)
+    @printf("%d\n",key_buff1[i])
+  end
+  exit(0)
+  =#
 
   # Determine the total number of keys on all other
   # processors holding keys of lesser value
@@ -651,17 +739,27 @@ function rank(iteration)
       m += bucket_size_totals[i + 1]  # m has total # of lesser keys
     end
   end
+  #MYTEST
+  #=
+  @printf("%d\n",m)
+  exit(0)
+  =#
 
   # Determine total number of keys on this processor
   j = 0
   for i = process_bucket_distrib_ptr1[my_rank + 1] : process_bucket_distrib_ptr2[my_rank + 1]
     j += bucket_size_totals[i + 1];     # j has total number of local keys
   end
-
+  #MYTEST
+  #=
+  @printf("%d\n",j)
+  exit(0)
+  =#
 
   # Ranking of all keys occurs in this section:
   # shift it backwards so no subtractions are necessary in loop
-  key_buff_ptr = key_buff1 - min_key_val
+  #key_buff_ptr = key_buff1 - min_key_val
+  key_buff_ptr = key_buff1  #TODO
 
   # In this section, the keys themselves are used as their
   # own indexes to determine how many of each there are: their
@@ -669,6 +767,14 @@ function rank(iteration)
   for i = 1:j
     key_buff_ptr[key_buff2[i] + 1] += 1 # Now they have individual key population
   end
+  #MYTEST
+  #=
+  @printf("%d\n",j)
+  for i = 1:SIZE_OF_BUFFERS
+    @printf("%d\n",key_buff1[i])
+  end
+  exit(0)
+  =#
 
   # To obtain ranks of each key, successively add the individual key
   # population, not forgetting the total of lesser keys, m.
@@ -680,8 +786,13 @@ function rank(iteration)
   for i = min_key_val + 1:max_key_val
     key_buff_ptr[i+1] += key_buff_ptr[i]
   end
-
-
+  #MYTEST
+  #=
+  for i = 1:SIZE_OF_BUFFERS
+    @printf("%d\n",key_buff_ptr[i])
+  end
+  exit(0)
+  =#
 
   # This is the partial verify test section
   # Observe that test_rank_array vals are
@@ -806,7 +917,7 @@ end
 #*****************************************************************
 
 function main()
-  global timeron
+  global timeron,passed_verification
   i = 0
   iteration = 0
   itemp = 0
@@ -903,7 +1014,7 @@ function main()
 # Do one interation for free (i.e., untimed) to guarantee initialization of
 # all data and code pages and respective tables
   rank(1)
-#=
+
 # Start verification counter
   passed_verification = 0;
   if my_rank == 0 && CLASS != 'S'
@@ -914,7 +1025,7 @@ function main()
   timer_clear(0)
 
 # Initialize separate communication, computation timing
-  if TIMING_ENABLED = 0
+  if TIMING_ENABLED == 0
     for i = 1:T_LAST
       timer_clear(i)
     end
@@ -953,15 +1064,61 @@ function main()
                                    MPI.SUM,
                                    0,
                                    MPI.COMM_WORLD)
-
-
+  #MYTEST
+  #=
+  @printf("%d\n",itemp)
+  exit(0)
+  =#
 
 # The final printout
   if my_rank == 0
     if passed_verification != 5*MAX_ITERATIONS + comm_size
       passed_verification = 0
     end
-    #c_print_results  Todo
+    #=
+    c_print_results( "IS",
+                     CLASS,
+                     TOTAL_KEYS,
+                     MIN_PROCS,
+                     0,
+                     MAX_ITERATIONS,
+                     NUM_PROCS,
+                     comm_size,
+                     maxtime,
+                     ( (MAX_ITERATIONS)*TOTAL_KEYS*MIN_PROCS)
+                                                  /maxtime/1000000.,
+                     "keys ranked",
+                     passed_verification,
+                     NPBVERSION,
+                     COMPILETIME,
+                     MPICC,
+                     CLINK,
+                     CMPI_LIB,
+                     CMPI_INC,
+                     CFLAGS,
+                     CLINKFLAGS );  #TODO
+    =#
+    c_print_results( "IS",
+                     CLASS,
+                     TOTAL_KEYS,
+                     MIN_PROCS,
+                     0,
+                     MAX_ITERATIONS,
+                     NUM_PROCS,
+                     comm_size,
+                     maxtime,
+                     ( (MAX_ITERATIONS)*TOTAL_KEYS*MIN_PROCS)
+                                                  /maxtime/1000000.,
+                     "keys ranked",
+                     passed_verification,
+                     0,
+                     0,
+                     0,
+                     0,
+                     0,
+                     0,
+                     0,
+                     0)
   end
 
 
@@ -998,21 +1155,11 @@ function main()
       end
     end
   end
-  =#
   MPI.Finalize()
 
   return 0
 
 end
-
-
-
-
-
-
-
-
-
 
 
 
