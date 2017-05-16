@@ -2,3 +2,8 @@
 4/17 16:39 stops at line 419 in is.c
 4/17 function create_seq find_my_seed randlc from IS are done.
 4/18 function full_verify is translated, but has not been tested. operations on arrays may cause problems.
+
+5/10 TODO: test MPI.Reduce using mutable and immutable input
+           c_print_results function
+           complete main function
+           review array operations

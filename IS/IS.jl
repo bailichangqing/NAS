@@ -509,11 +509,14 @@ function rank(iteration)
   min_key_val = 0
   max_key_val = 0
 
+
+
   TIMER_START( T_RANK )
+
   #  Iteration alteration of keys
   if(my_rank == 0 )
-    key_array[iteration] = iteration;
-    key_array[iteration+MAX_ITERATIONS] = MAX_KEY - iteration;
+    key_array[iteration + 1] = iteration;
+    key_array[iteration + MAX_ITERATIONS + 1] = MAX_KEY - iteration;
   end
 
 
@@ -530,14 +533,14 @@ function rank(iteration)
   # top of array bucket_size
   for i = 1:TEST_ARRAY_SIZE
     if div(test_index_array[i],NUM_KEYS) == my_rank
-      bucket_size[NUM_BUCKETS+i] = key_array[test_index_array[i] % NUM_KEYS]
+      bucket_size[NUM_BUCKETS+i] = key_array[test_index_array[i] % NUM_KEYS + 1]
     end
   end
 
 
   # Determine the number of keys in each bucket
   for i = 1:NUM_KEYS
-    bucket_size[key_array[i] >> shift] += 1;
+    bucket_size[key_array[i] >> shift + 1] += 1;
   end
 
 
@@ -551,7 +554,7 @@ function rank(iteration)
   # Sort into appropriate bucket
   for i = 1:NUM_KEYS
     key = key_array[i]
-    key_buff1[bucket_ptrs[key >> shift] += 1] = key
+    key_buff1[(bucket_ptrs[key >> shift + 1] += 1) + 1] = key
   end
 
 
@@ -560,11 +563,10 @@ function rank(iteration)
 
   # Get the bucket size totals for the entire problem. These
   # will be used to determine the redistribution of keys
-  MPI.Allreduce(bucket_size,
-                bucket_size_totals,
-                NUM_BUCKETS+TEST_ARRAY_SIZE,
-                MPI.SUM,
-                MPI.COMM_WORLD)
+  MPI.Allreduce!(bucket_size,
+                 bucket_size_totals,
+                 MPI.SUM,
+                 MPI.COMM_WORLD)
 
   TIMER_STOP( T_RCOMM )
   TIMER_START( T_RANK )
