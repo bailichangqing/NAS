@@ -38,3 +38,6 @@
 
      In "Ranking of all keys occurs in this section", array address operation will cause problem. So far I just set
      key_buff_ptr = key_buff1 instead of key_buff_ptr = key_buff1 - min_key_val. This may cause problem.
+
+5/24 When NPROCS = 2 key_array's initial values in C code and in Julia code doesn't match, this must be caused by
+     find_my_seed or create_seq. Details should be figure out tmr

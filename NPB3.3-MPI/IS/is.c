@@ -858,6 +858,7 @@ void rank( int iteration )
     {
       printf("%d\n",key_buff1[i]);
     }
+    MPI_Barrier(MPI_COMM_WORLD);
     exit(0);
     */
 
@@ -872,10 +873,14 @@ void rank( int iteration )
         key_buff_ptr[i+1] += key_buff_ptr[i];
     //MYTEST
     /*
-    for(int i = 0;i < SIZE_OF_BUFFERS;i++)
+    if(my_rank == 0)
     {
-      printf("%d\n",key_buff_ptr[i]);
+      for(int i = 0;i < TEST_ARRAY_SIZE + NUM_BUCKETS;i++)
+      {
+        printf("%d\n",bucket_size_totals[i]);
+      }
     }
+    MPI_Barrier(MPI_COMM_WORLD);
     exit(0);
     */
 
@@ -889,6 +894,13 @@ void rank( int iteration )
         {
             /* Add the total of lesser keys, m, here */
             INT_TYPE2 key_rank = key_buff_ptr[k-1] + m;
+            //MYTEST
+            /*
+            if(my_rank == 0)
+            {
+              printf("k = %d\n",key_rank);
+            }
+            */
             int failed = 0;
 
             switch( CLASS )
@@ -1014,6 +1026,23 @@ void rank( int iteration )
 
 }
 
+void debuginfo(int rank,INT_TYPE* ptr,int size)
+{
+
+  if(my_rank == rank)
+  {
+    FILE * fp;
+    fp = fopen("/home/cq/copt","w");
+    for(int i = 0;i < size;i++)
+    {
+      fprintf(fp,"%d\n",ptr[i]);
+    }
+    fclose(fp);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
+  exit(0);
+}
 
 /*****************************************************************/
 /*************             M  A  I  N             ****************/
@@ -1118,7 +1147,7 @@ int main( int argc, char **argv )
                               314159265.00,      /* Random number gen seed */
                               1220703125.00 ),   /* Random number gen mult */
                 1220703125.00 );                 /* Random number gen mult */
-
+    debuginfo(1,key_array,SIZE_OF_BUFFERS);
 
 /*  Do one interation for free (i.e., untimed) to guarantee initialization of
     all data and code pages and respective tables */

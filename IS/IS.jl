@@ -8,7 +8,7 @@ include("c_print_results.jl")
 #/******************/
 if isdefined(:CLASS) == false
   CLASS = 'S'
-  NUM_PROCS = 1
+  NUM_PROCS = 2
 end
 MIN_PROCS = 1
 
@@ -765,14 +765,17 @@ function rank(iteration)
   # own indexes to determine how many of each there are: their
   # individual population
   for i = 1:j
-    key_buff_ptr[key_buff2[i] + 1] += 1 # Now they have individual key population
+    key_buff_ptr[key_buff2[i] + 1 - min_key_val] += 1 # Now they have individual key population
   end
   #MYTEST
   #=
-  @printf("%d\n",j)
-  for i = 1:SIZE_OF_BUFFERS
-    @printf("%d\n",key_buff1[i])
+  if my_rank == 0
+    @printf("%d\n",j)
+    for i = 1:SIZE_OF_BUFFERS
+      @printf("%d\n",key_buff1[i])
+    end
   end
+  MPI.Barrier(MPI.COMM_WORLD)
   exit(0)
   =#
 
@@ -788,9 +791,12 @@ function rank(iteration)
   end
   #MYTEST
   #=
-  for i = 1:SIZE_OF_BUFFERS
-    @printf("%d\n",key_buff_ptr[i])
+  if my_rank == 0
+    for i = 1:TEST_ARRAY_SIZE + NUM_BUCKETS
+      @printf("%d\n",bucket_size_totals[i])
+    end
   end
+  MPI.Barrier(MPI.COMM_WORLD)
   exit(0)
   =#
 
@@ -801,6 +807,12 @@ function rank(iteration)
     k = bucket_size_totals[i+NUM_BUCKETS]     # Keys were hidden here
     if min_key_val <= k  &&  k <= max_key_val
       # Add the total of lesser keys, m, here
+      #MYTEST
+      #=
+      if my_rank == 0
+        println("k = ",k)
+      end
+      =#
       key_rank = key_buff_ptr[k] + m
       failed = 0
 
@@ -912,6 +924,19 @@ function rank(iteration)
 
 end
 
+function debuginfo(rank,ptr)
+  if my_rank == rank
+    fopt = open("/home/cq/jopt","w+")
+    for i = 1:length(ptr)
+      atp = ptr[i]
+      write(fopt,"$atp\n")
+    end
+    close(fopt)
+  end
+  MPI.Barrier(MPI.COMM_WORLD)
+  MPI.Finalize()
+  exit(0)
+end
 #*****************************************************************
 #*************             M  A  I  N             ****************
 #*****************************************************************
@@ -1009,7 +1034,7 @@ function main()
                            314159265.00,      # Random number gen seed
                            1220703125.00 ),   # Random number gen mult
               1220703125.00 )                 # Random number gen mult
-
+  debuginfo(1,key_array)
 
 # Do one interation for free (i.e., untimed) to guarantee initialization of
 # all data and code pages and respective tables
