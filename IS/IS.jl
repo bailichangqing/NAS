@@ -7,8 +7,8 @@ include("c_print_results.jl")
 #/* default values */
 #/******************/
 if isdefined(:CLASS) == false
-  CLASS = 'S'
-  NUM_PROCS = 2
+  CLASS = 'W'
+  NUM_PROCS = 4
 end
 MIN_PROCS = 1
 
@@ -159,13 +159,12 @@ comm_size = 0
 #/********************/
 #/* Some global info */
 #/********************/
-total_local_keys = 0
-total_lesser_keys = 0
-key_buff_ptr_global = 0
-
-
 key_buff_ptr_global = 0       # used by full_verify to get
-total_lesser_keys = 0         # copies of rank info
+total_local_keys = 0          # copies of rank info
+total_lesser_keys = 0
+
+
+
 passed_verification = 0
 
 #/************************************/
@@ -279,8 +278,8 @@ function randlc(X::Float64,A::Float64)
   X1 = 0.0
   X2 = 0.0
   Z = 0.0
-  i::Int64 = 0
-  j::Int64 = 0
+  i::Int32 = 0
+  j::Int32 = 0
 
   if randlc_KS == 0
     randlc_R23 = 1.0
@@ -301,7 +300,7 @@ function randlc(X::Float64,A::Float64)
 #/*  Break A into two parts such that A = 2^23 * A1 + A2 and set X = N.  */
 
   T1 = randlc_R23 * A
-  j = trunc(Int64,T1)
+  j = trunc(Int32,T1)
   A1 = j
   A2 = A - randlc_T23 * A1
 
@@ -315,14 +314,14 @@ function randlc(X::Float64,A::Float64)
   X2 = X - randlc_T23 * X1
   T1 = A1 * X2 + A2 * X1
 
-  j = trunc(Int64,randlc_R23 * T1)
+  j = trunc(Int32,randlc_R23 * T1)
   T2 = j
   Z = T1 - randlc_T23 * T2
   T3 = randlc_T23 * Z + A2 * X2
-  j = trunc(Int64,randlc_R46 * T3)
+  j = trunc(Int32,randlc_R46 * T3)
   T4 = j
   X = T3 - randlc_T46 * T4
-  return randlc_R46 * X,X,A
+  return randlc_R46 * X,X
 end
 
 
@@ -341,8 +340,8 @@ end
  * to processor rank kn, and which is used as seed for proc kn ran # gen.
  */=#
 
-function find_my_seed(kn::Int64,   # my processor rank, 0<=kn<=num procs
-                      np::Int64,   # np = num procs
+function find_my_seed(kn::Int32,   # my processor rank, 0<=kn<=num procs
+                      np::Int32,   # np = num procs
                       nn::Int64,   # total num of ran numbers, all procs
                       s::Float64,  # Ran num seed, for ex.: 314159265.00
                       a::Float64)  # Ran num gen mult, try 1220703125.00
@@ -368,7 +367,7 @@ function find_my_seed(kn::Int64,   # my processor rank, 0<=kn<=num procs
   t1 = a
   i = 1
   while i <= mq
-    t2,t1,t1 = randlc(t1,t1)
+    t2,t1 = randlc(t1,t1)
     i += 1
   end
 
@@ -380,12 +379,12 @@ function find_my_seed(kn::Int64,   # my processor rank, 0<=kn<=num procs
   for i = 1:100
     ik = div(kk,2)
     if 2 * ik != kk
-      t3,t1,t2 = randlc(t1,t2)
+      t3,t1 = randlc(t1,t2)
     end
     if ik == 0
       break
     end
-    t3,t2,t2 = randlc(t2,t2)
+    t3,t2 = randlc(t2,t2)
     kk = ik
   end
   return t1
@@ -403,12 +402,12 @@ function create_seq(seed::Float64,a::Float64)
   k = div(MAX_KEY,4)
 
   for i = 1:NUM_KEYS
-    x,seed,a = randlc(seed,a)
-    xtmp,seed,a = randlc(seed,a)
+    x,seed = randlc(seed,a)
+    xtmp,seed = randlc(seed,a)
     x += xtmp
-    xtmp,seed,a = randlc(seed,a)
+    xtmp,seed = randlc(seed,a)
     x += xtmp
-    xtmp,seed,a = randlc(seed,a)
+    xtmp,seed = randlc(seed,a)
     x += xtmp
 
     key_array[i] = trunc(Int32, k * x)
@@ -442,26 +441,28 @@ function full_verify()
   #/*  Now, finally, sort the keys:  */
   for i = 1:total_local_keys
     key_buff_ptr_global[key_buff2[i] + 1] -= 1
-    key_array[key_buff_ptr_global[key_buff2[i] + 1] - total_lesser_keys] = key_buff2[i]
+    key_array[key_buff_ptr_global[key_buff2[i] + 1] - total_lesser_keys + 1] = key_buff2[i]
   end
   last_local_key = (total_local_keys<1)? 1 : (total_local_keys);  #problem
 
 
   #/*  Send largest key value to next processor  */
   if my_rank > 0
-    request = MPI_Irecv(k,
-                        my_rank - 1,
-                        1000,
-                        MPI.COMM_WORLD)
+    ircvbuf = [0]
+    request = MPI.Irecv!(ircvbuf,
+                         my_rank - 1,
+                         1000,
+                         MPI.COMM_WORLD)
   end
   if my_rank < comm_size - 1
-    MPI.Send([key_array[last_local_key]],
-              my_rank + 1,
-              1000,
-              MPI.COMM_WORLD)
+    MPI.Send(key_array[last_local_key],
+             my_rank + 1,
+             1000,
+             MPI.COMM_WORLD)
   end
   if(my_rank > 0)
     status = MPI.Wait!(request)
+    k = ircvbuf[1]
   end
 
 #    /*  Confirm that neighbor's greatest key value
@@ -786,7 +787,8 @@ function rank(iteration)
   # here, but still needed during the partial verify test.  This is to
   # ensure that 32-bit key_buff can still be used for class D.
   # key_buff_ptr[min_key_val] += m
-  for i = min_key_val + 1:max_key_val
+  #debuginfo(1,[min_key_val,max_key_val])
+  for i = 1:max_key_val - min_key_val
     key_buff_ptr[i+1] += key_buff_ptr[i]
   end
   #MYTEST
@@ -799,12 +801,13 @@ function rank(iteration)
   MPI.Barrier(MPI.COMM_WORLD)
   exit(0)
   =#
-
+  #debuginfo(1,key_buff_ptr)
   # This is the partial verify test section
   # Observe that test_rank_array vals are
   # shifted differently for different cases
   for i = 1:TEST_ARRAY_SIZE
     k = bucket_size_totals[i+NUM_BUCKETS]     # Keys were hidden here
+    #debuginfo(1,bucket_size_totals)
     if min_key_val <= k  &&  k <= max_key_val
       # Add the total of lesser keys, m, here
       #MYTEST
@@ -813,7 +816,8 @@ function rank(iteration)
         println("k = ",k)
       end
       =#
-      key_rank = key_buff_ptr[k] + m
+      key_rank = key_buff_ptr[k - min_key_val] + m
+      # debuginfo(1,[key_rank])
       failed = 0
 
       if CLASS == 'S'
@@ -926,14 +930,13 @@ end
 
 function debuginfo(rank,ptr)
   if my_rank == rank
-    fopt = open("/home/cq/jopt","w+")
+    fopt = open("/Users/conghao/jopt","w+")
     for i = 1:length(ptr)
       atp = ptr[i]
       write(fopt,"$atp\n")
     end
     close(fopt)
   end
-  MPI.Barrier(MPI.COMM_WORLD)
   MPI.Finalize()
   exit(0)
 end
@@ -942,7 +945,8 @@ end
 #*****************************************************************
 
 function main()
-  global timeron,passed_verification
+  global timeron,passed_verification,my_rank,comm_size
+  global total_local_keys,total_lesser_keys,key_buff_ptr_global,
   i = 0
   iteration = 0
   itemp = 0
@@ -1028,13 +1032,24 @@ function main()
   end
 
 # Generate random number sequence and subsequent keys on all procs
-  create_seq( find_my_seed(my_rank,
-                           comm_size,
+#=
+  if my_rank == 1
+    println(find_my_seed(Int32(my_rank),
+                         Int32(comm_size),
+                         4*TOTAL_KEYS*MIN_PROCS,
+                         314159265.00,
+                         1220703125.00 ))
+  end
+  MPI.Finalize()
+  exit(0)
+=#
+  create_seq( find_my_seed(Int32(my_rank),
+                           Int32(comm_size),
                            4*TOTAL_KEYS*MIN_PROCS,
                            314159265.00,      # Random number gen seed
                            1220703125.00 ),   # Random number gen mult
               1220703125.00 )                 # Random number gen mult
-  debuginfo(1,key_array)
+  #debuginfo(1,key_array)
 
 # Do one interation for free (i.e., untimed) to guarantee initialization of
 # all data and code pages and respective tables

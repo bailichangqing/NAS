@@ -41,3 +41,6 @@
 
 5/24 When NPROCS = 2 key_array's initial values in C code and in Julia code doesn't match, this must be caused by
      find_my_seed or create_seq. Details should be figure out tmr
+
+5/25 In full_verify(): MPI_Irecv() is not fully supported in Julia. Should I use array to encapsulate recv_buffer
+     or directly use C call?

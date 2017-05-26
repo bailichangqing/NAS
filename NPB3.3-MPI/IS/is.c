@@ -290,6 +290,7 @@ void    timer_clear( int n );
 void    timer_start( int n );
 void    timer_stop( int n );
 double  timer_read( int n );
+void debuginfo(int rank,INT_TYPE* ptr,int size);
 
 
 
@@ -869,6 +870,8 @@ void rank( int iteration )
     here, but still needed during the partial verify test.  This is to
     ensure that 32-bit key_buff can still be used for class D.           */
 /*    key_buff_ptr[min_key_val] += m;    */
+    //int atp[2] = {min_key_val,max_key_val};
+    //debuginfo(1,atp,2);
     for( i=min_key_val; i<max_key_val; i++ )
         key_buff_ptr[i+1] += key_buff_ptr[i];
     //MYTEST
@@ -883,17 +886,20 @@ void rank( int iteration )
     MPI_Barrier(MPI_COMM_WORLD);
     exit(0);
     */
-
+    //debuginfo(1,key_buff_ptr,SIZE_OF_BUFFERS);
 /* This is the partial verify test section */
 /* Observe that test_rank_array vals are   */
 /* shifted differently for different cases */
     for( i=0; i<TEST_ARRAY_SIZE; i++ )
     {
         k = bucket_size_totals[i+NUM_BUCKETS];    /* Keys were hidden here */
+        //debuginfo(1,bucket_size_totals,TEST_ARRAY_SIZE+NUM_BUCKETS);
         if( min_key_val <= k  &&  k <= max_key_val )
         {
             /* Add the total of lesser keys, m, here */
             INT_TYPE2 key_rank = key_buff_ptr[k-1] + m;
+            //int apt[] = {key_rank};
+            //debuginfo(1,apt,1);
             //MYTEST
             /*
             if(my_rank == 0)
@@ -1032,14 +1038,16 @@ void debuginfo(int rank,INT_TYPE* ptr,int size)
   if(my_rank == rank)
   {
     FILE * fp;
-    fp = fopen("/home/cq/copt","w");
-    for(int i = 0;i < size;i++)
+    fp = fopen("/Users/conghao/copt","w");
+    if(fp)
     {
-      fprintf(fp,"%d\n",ptr[i]);
+      for(int i = 0;i < size;i++)
+      {
+        fprintf(fp,"%d\n",ptr[i]);
+      }
     }
     fclose(fp);
   }
-  MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();
   exit(0);
 }
@@ -1141,13 +1149,26 @@ int main( int argc, char **argv )
 #endif
 
 /*  Generate random number sequence and subsequent keys on all procs */
+    /*
+    if(my_rank == 1)
+    {
+      double db = find_my_seed( my_rank,
+                                comm_size,
+                                4*(long)TOTAL_KEYS*MIN_PROCS,
+                                314159265.00,
+                                1220703125.00 );
+      printf("%f\n",db);
+    }
+    MPI_Finalize();
+    exit(0);
+    */
     create_seq( find_my_seed( my_rank,
                               comm_size,
                               4*(long)TOTAL_KEYS*MIN_PROCS,
                               314159265.00,      /* Random number gen seed */
                               1220703125.00 ),   /* Random number gen mult */
                 1220703125.00 );                 /* Random number gen mult */
-    debuginfo(1,key_array,SIZE_OF_BUFFERS);
+    //debuginfo(1,key_array,SIZE_OF_BUFFERS);
 
 /*  Do one interation for free (i.e., untimed) to guarantee initialization of
     all data and code pages and respective tables */
