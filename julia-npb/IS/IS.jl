@@ -1,13 +1,15 @@
+include("../common/timers.jl")
+include("../common/print_results.jl")
+include("npbparams.jl")
 import MPI
-include("c_timers.jl")
-include("c_print_results.jl")
-
+import PrintResults
+import Timers
 
 #/******************/
 #/* default values */
 #/******************/
 if isdefined(:CLASS) == false
-  CLASS = 'S'
+  CLASS = "S"
   NUM_PROCS = 4
 end
 MIN_PROCS = 1
@@ -15,7 +17,7 @@ MIN_PROCS = 1
 #/*************/
 #/*  CLASS S  */
 #/*************/
-if CLASS == 'S'
+if CLASS == "S"
   TOTAL_KEYS_LOG_2 = 16
   MAX_KEY_LOG_2 = 11
   NUM_BUCKETS_LOG_2 = 9
@@ -24,7 +26,7 @@ end
 #/*************/
 #/*  CLASS W  */
 #/*************/
-if CLASS == 'W'
+if CLASS == "W"
   TOTAL_KEYS_LOG_2 = 20
   MAX_KEY_LOG_2 = 16
   NUM_BUCKETS_LOG_2 = 10
@@ -33,7 +35,7 @@ end
 #/*************/
 #/*  CLASS A  */
 #/*************/
-if CLASS == 'A'
+if CLASS == "A"
   TOTAL_KEYS_LOG_2 = 23
   MAX_KEY_LOG_2 = 19
   NUM_BUCKETS_LOG_2 = 10
@@ -42,7 +44,7 @@ end
 #/*************/
 #/*  CLASS B  */
 #/*************/
-if CLASS == 'B'
+if CLASS == "B"
   TOTAL_KEYS_LOG_2 = 25
   MAX_KEY_LOG_2 = 21
   NUM_BUCKETS_LOG_2 = 10
@@ -51,7 +53,7 @@ end
 #/*************/
 #/*  CLASS C  */
 #/*************/
-if CLASS == 'C'
+if CLASS == "C"
   TOTAL_KEYS_LOG_2 = 27
   MAX_KEY_LOG_2 = 23
   NUM_BUCKETS_LOG_2 = 10
@@ -60,7 +62,7 @@ end
 #/*************/
 #/*  CLASS D  */
 #/*************/
-if CLASS == 'D'
+if CLASS == "D"
   TOTAL_KEYS_LOG_2 = 29
   MAX_KEY_LOG_2 = 27
   NUM_BUCKETS = 10
@@ -96,7 +98,7 @@ end
 #/* PROCESSORS. THE LARGEST VERIFIED NUMBER IS 1024. INCREASE     */
 #/* MAX_PROCS AT YOUR PERIL                                       */
 #/*****************************************************************/
-if CLASS == 'S'
+if CLASS == "S"
   MAX_PROCS = 128
 else
   MAX_PROCS = 1024
@@ -119,7 +121,7 @@ function TIMER_START(x)
   if TIMING_ENABLED == -1
   else
     if timeron == 1
-      timer_start(x)
+      Timers.timer_start(x)
     end
   end
 end
@@ -129,7 +131,7 @@ function TIMER_STOP(x)
   if(TIMING_ENABLED == -1)
   else
     if timeron == 1
-      timer_stop(x)
+      Timers.timer_stop(x)
     end
   end
 end
@@ -820,7 +822,7 @@ function rank(iteration)
       # debuginfo(1,[key_rank])
       failed = 0
 
-      if CLASS == 'S'
+      if CLASS == "S"
         if i <= 3
           if key_rank != test_rank_array[i]+iteration
             failed = 1
@@ -834,7 +836,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS == 'W'
+      elseif CLASS == "W"
         if i < 3
           if key_rank != test_rank_array[i]+(iteration-2)
             failed = 1
@@ -848,7 +850,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS == 'A'
+      elseif CLASS == "A"
         if i <= 3
           if key_rank != test_rank_array[i]+(iteration-1)
             failed = 1
@@ -862,7 +864,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS == 'B'
+      elseif CLASS == "B"
         if i == 1 || i == 2 || i == 4
           if key_rank != test_rank_array[i]+iteration
             failed = 1
@@ -876,7 +878,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS == 'C'
+      elseif CLASS == "C"
         if i <= 3
           if key_rank != test_rank_array[i]+iteration
             failed = 1
@@ -890,7 +892,7 @@ function rank(iteration)
             passed_verification += 1
           end
         end
-      elseif CLASS == 'D'
+      elseif CLASS == "D"
         if i < 3
           if key_rank != test_rank_array[i]+iteration
             failed = 1
@@ -962,22 +964,22 @@ function main()
 
 # Initialize the verification arrays if a valid class
   for i = 1:TEST_ARRAY_SIZE
-    if CLASS == 'S'
+    if CLASS == "S"
       test_index_array[i] = S_test_index_array[i]
       test_rank_array[i]  = S_test_rank_array[i]
-    elseif CLASS == 'A'
+    elseif CLASS == "A"
       test_index_array[i] = A_test_index_array[i]
       test_rank_array[i]  = A_test_rank_array[i]
-    elseif CLASS == 'W'
+    elseif CLASS == "W"
       test_index_array[i] = W_test_index_array[i]
       test_rank_array[i]  = W_test_rank_array[i]
-    elseif CLASS == 'B'
+    elseif CLASS == "B"
       test_index_array[i] = B_test_index_array[i]
       test_rank_array[i]  = B_test_rank_array[i]
-    elseif CLASS == 'C'
+    elseif CLASS == "C"
       test_index_array[i] = C_test_index_array[i]
       test_rank_array[i]  = C_test_rank_array[i]
-    elseif CLASS == 'D'
+    elseif CLASS == "D"
       test_index_array[i] = D_test_index_array[i]
       test_rank_array[i]  = D_test_rank_array[i]
     end
@@ -988,7 +990,7 @@ function main()
 # Printout initial NPB info
   if my_rank == 0
     @printf( "\n\n NAS Parallel Benchmarks 3.3 -- IS Benchmark\n\n" )
-    @printf( " Size:  %ld  (class %c)\n", TOTAL_KEYS*MIN_PROCS, CLASS )
+    @printf( " Size:  %ld  (class %s)\n", TOTAL_KEYS*MIN_PROCS, CLASS )
     @printf( " Iterations:   %d\n", MAX_ITERATIONS )
     @printf( " Number of processes:     %d\n", comm_size )
 
@@ -1026,8 +1028,8 @@ function main()
   timeron = MPI.bcast(timeron, 0, MPI.COMM_WORLD)
 
   if TIMING_ENABLED == 0
-    for i = 1:T_LAST
-      timer_clear(i)
+    for i = 2:T_LAST + 1
+      Timers.timer_clear(i)
     end
   end
 
@@ -1057,35 +1059,35 @@ function main()
 
 # Start verification counter
   passed_verification = 0;
-  if my_rank == 0 && CLASS != 'S'
+  if my_rank == 0 && CLASS != "S"
     @printf( "\n   iteration\n" );
   end
 
 # Initialize timer
-  timer_clear(0)
+  Timers.timer_clear(1)
 
 # Initialize separate communication, computation timing
   if TIMING_ENABLED == 0
-    for i = 1:T_LAST
-      timer_clear(i)
+    for i = 2:T_LAST + 1
+      Timers.timer_clear(i)
     end
   end
 
 # Start timer
-  timer_start(0)
+  Timers.timer_start(1)
 
 
 # This is the main iteration
   for iteration = 1:MAX_ITERATIONS
-    if my_rank == 0 && CLASS != 'S'
+    if my_rank == 0 && CLASS != "S"
       @printf( "        %d\n", iteration )
     end
     rank( iteration );
   end
 # Stop timer, obtain time for processors
-  timer_stop( 0 )
+  Timers.timer_stop( 1 )
 
-  timecounter = timer_read( 0 )
+  timecounter = Timers.timer_read( 1 )
 
 # End of timing, obtain maximum time of all processors
   maxtime = MPI.Reduce(timecounter,
@@ -1115,50 +1117,21 @@ function main()
     if passed_verification != 5*MAX_ITERATIONS + comm_size
       passed_verification = 0
     end
-    #=
-    c_print_results( "IS",
-                     CLASS,
-                     TOTAL_KEYS,
-                     MIN_PROCS,
-                     0,
-                     MAX_ITERATIONS,
-                     NUM_PROCS,
-                     comm_size,
-                     maxtime,
-                     ( (MAX_ITERATIONS)*TOTAL_KEYS*MIN_PROCS)
-                                                  /maxtime/1000000.,
-                     "keys ranked",
-                     passed_verification,
-                     NPBVERSION,
-                     COMPILETIME,
-                     MPICC,
-                     CLINK,
-                     CMPI_LIB,
-                     CMPI_INC,
-                     CFLAGS,
-                     CLINKFLAGS );  #TODO
-    =#
-    c_print_results( "IS",
-                     CLASS,
-                     TOTAL_KEYS,
-                     MIN_PROCS,
-                     0,
-                     MAX_ITERATIONS,
-                     NUM_PROCS,
-                     comm_size,
-                     maxtime,
-                     ( (MAX_ITERATIONS)*TOTAL_KEYS*MIN_PROCS)
-                                                  /maxtime/1000000.,
-                     "keys ranked",
-                     passed_verification,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0)
+    PrintResults.print_results( "IS",
+                     			CLASS,
+                     			TOTAL_KEYS,
+                     			MIN_PROCS,
+                     			0,
+                     			MAX_ITERATIONS,
+                     			NUM_PROCS,
+			                    comm_size,
+			                    maxtime,
+			                    ( (MAX_ITERATIONS)*TOTAL_KEYS*MIN_PROCS)
+			                                                 /maxtime/1000000.,
+			                    "keys ranked",
+			                    passed_verification,
+			                    npbversion,
+			                    rand )  
   end
 
 
@@ -1168,10 +1141,10 @@ function main()
       tmin = Array(Float64,T_LAST + 1)
       tsum = Array(Float64,T_LAST + 1)
       tmax = Array(Float64,T_LAST + 1)
-      t_recs = Array(Char,T_LAST + 1,9)
-
+     #t_recs = Array(Char,T_LAST + 1,9
+	  t_recs = Array(String,T_LAST + 1)
       for i = 1:T_LAST + 1
-        t1[i] = timer_read( i )
+        t1[i] = Timers.timer_read( i )
       end
 
       MPI.Reduce!(t1,
@@ -1191,7 +1164,17 @@ function main()
                   MPI.COMM_WORLD)
 
       if my_rank == 0
-        #TODO
+		t_recs[T_TOTAL + 1] = "total"
+		t_recs[T_RANK + 1] = "rcomp"
+		t_recs[T_RCOMM + 1] = "rcomm"
+		t_recs[T_VERIFY + 1] = "verify"
+		@printf( " nprocs = %6d     ", comm_size)
+		@printf( "     minimum     maximum     average\n" )
+		for i = 1:T_LAST + 1
+			printf( " timer %2d (%-8s):  %10.4f  %10.4f  %10.4f\n",
+			        i+1, t_recs[i], tmin[i], tmax[i],
+					tsum[i]/((double) comm_size) )
+		end
       end
     end
   end
@@ -1204,35 +1187,4 @@ end
 
 
 
-TIMING_ENABLED = -1
 main()
-
-
-
-
-
-
-
-
-
-
-
-#=
-#  test of find_my_seed
-
-kn = 0
-np = 10
-nn = 10
-s = 314159265.00
-a = 1220703125.00
-b = find_my_seed(kn,np,nn,s,a)
-println("b:",b)
-=#
-
-#=
-#  test of create_seq
-create_seq(123.0,345.0)
-for i = 1: NUM_KEYS
-  println(key_array[i])
-end
-=#

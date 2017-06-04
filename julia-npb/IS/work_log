@@ -1,0 +1,54 @@
+4/16 stops at line 396 in is.c
+4/17 16:39 stops at line 419 in is.c
+4/17 function create_seq find_my_seed randlc from IS are done.
+4/18 function full_verify is translated, but has not been tested. operations on arrays may cause problems.
+
+5/10 TODO: test MPI.Reduce using mutable and immutable input
+           c_print_results function
+           complete main function
+           review array operations
+
+5/15 key_buff2 is used to receive keys using MPI.Alltoallv(). In julia receive buffer is created automatically.
+     The problem is real size of the buffer could be smaller than the size declared in C language. In order to
+     run the program, I use a key_buff2buf to store keys got from MPI.Alltoallv and then copy the elements of it
+     into key_buff2. For performance, I should check whether I can directly use key_buff2 to receive keys from
+     MPI.Alltoallv()
+
+     timeron need to be broadcast by process 0. So in main function, timeron is declared as global
+
+5/16 When using elements in process_bucket_distrib_ptr2 as array index, it seems we don't need to add 1 to it.
+     In "Determine Redistibution of keys" the first element of j version is 512 while the first element i c
+     version is 511
+     (modified: we need to make sure arrays in j version and in c version have the same content so we just need
+      to adjust the index when porting c code into j code. Thus, in j version, elements in
+      process_bucket_distrib_ptr2 are reduced by 1)
+
+     after "Clear the work array" key_buff1 doesn't match, this is caused by the difference of first element in
+     process_bucket_distrib_ptr2. I just ignore this bug. Does this matter? This need to be check in the future.
+
+     In "shift it backwards so no subtractions are necessary in loop", how to port the array address operation?
+     When NPROCS = 1 AND CLASS = S, current version of code seems to be okay, but what if NPROCS > 1? This need
+     to be checked
+
+     So far in c_print_results "ifdef SMP" part is not included in it. Once we know how to
+     deal with these #ifdef macros, SMP part should be included. Also, some parameters of c_print_results come
+     from Makefile(CLINK,MPICC,etc). We don't know how to deal with then so currently these information are ignored.
+
+     how to deal with global pointers like "key_buff_ptr_global"?
+
+     In "Ranking of all keys occurs in this section", array address operation will cause problem. So far I just set
+     key_buff_ptr = key_buff1 instead of key_buff_ptr = key_buff1 - min_key_val. This may cause problem.
+
+5/24 When NPROCS = 2 key_array's initial values in C code and in Julia code doesn't match, this must be caused by
+     find_my_seed or create_seq. Details should be figure out tmr
+
+5/25 In full_verify(): MPI_Irecv() is not fully supported in Julia. Should I use array to encapsulate recv_buffer
+     or directly use C call?
+
+6/4	 1.IS now use informations in npbparams.jl
+	 
+	 2.Change to use print_result in common/print_results.jl, but so far print_result cannot print out correct benchmark
+	 result due to the type of passed_verification.
+
+	 3.Change to use common/timers.
+	 

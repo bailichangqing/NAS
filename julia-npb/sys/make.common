@@ -1,0 +1,33 @@
+PROGRAM  = $(BINDIR)/$(BENCHMARK).$(CLASS).$(NPROCS)
+
+# Class "U" is used internally by the setparams program to mean
+# "unknown". This means that if you don't specify CLASS=
+# on the command line, you'll get an error. It would be nice
+# to be able to avoid this, but we'd have to get information
+# from the setparams back to the make program, which isn't easy. 
+CLASS=U
+NPROCS=1
+
+default:: ${PROGRAM}
+
+# This makes sure the configuration utility setparams 
+# is up to date. 
+# Note that this must be run every time, which is why the
+# target does not exist and is not created. 
+# If you create a file called "config" you will break things. 
+config:
+	julia ../sys/setparams.jl ${BENCHMARK} ${NPROCS} ${CLASS} ${SUBTYPE}
+
+# Normally setparams updates npbparams.jl only if the settings (CLASS/NPROCS)
+# have changed. However, we also want to update if the compile options
+# may have changed (set in ../config/make.def). 
+npbparams.jl: ../config/make.def
+	@ echo make.def modified. Rebuilding npbparams.jl just in case
+	rm -f npbparams.jl
+	julia ../sys/setparams ${BENCHMARK} ${NPROCS} ${CLASS} ${SUBTYPE}
+
+# So that "make benchmark-name" works
+${BENCHMARK}:  default
+${BENCHMARKU}: default
+
+
