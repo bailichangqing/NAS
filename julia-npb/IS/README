@@ -1,0 +1,49 @@
+Problems:
+1. how to deal with #ifdef?
+2. what is npbparams.h?
+3. who will and where to define TIMING_ENABLED?
+
+Issues:
+1. unless you specify the type of the variable you are initiating, the default types are Int64 or Float64.
+   you cannot specify the type of a global variable(this feature is going to be supported in future version of julia).
+   in an expression like " a = b" even if the type of b is Int8, the type of a will be default type(Int64). Only the value of b is copied to a.
+   "a::Int8 = 128" will raise a runtime error.
+
+2. In C version, the size of int differs on different machine. However the default type of global value in julia is Int64/FLoat64, will this affect performance? In is.c there is only one global value so this seems to be ok.
+
+3. How to deal with variables defined as int/float type in C code? So far global variables are defined as int(Int64)/float(Float64). Local variabes of int/float type are defined as int32/float32.
+
+4. Variable declaration is translated as initiation of a variable."int* a" are translated as "a = 0"
+
+5. In julia, you cannot change the binding of a local variable in a function. There are two solutions.
+   "
+   function aa(a)
+    a = 10
+   end
+   a = 1
+   aa(a)
+   a # 1
+   "
+   So when translating function in C code like "int f(int* a)" which will modify the value of the address a points to, I use return to make modification visible.
+   Example:
+   "
+   //C code
+   int f(int*a)
+   {
+    *a = *a + 2
+    return 0
+   }
+   "
+   "
+   #Julia code
+   function f(a)
+    return 0,a+2
+   "
+
+6. Consider a C prototype "int f(int*a, int* b)". I know only *a will be modified. Should I return a,b or just return a in my corresponding julia code?
+
+7. Julia does not support static declaration. To emulate static declaration in C code, I use global keyword.
+
+8. Should I follow the convention in julia that if a function's name ends with !,it means this function will modify the parameters.
+
+9. Should I use isdefined() function to represent #ifdef ?
