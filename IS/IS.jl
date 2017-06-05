@@ -7,7 +7,7 @@ include("c_print_results.jl")
 #/* default values */
 #/******************/
 if isdefined(:CLASS) == false
-  CLASS = 'W'
+  CLASS = 'S'
   NUM_PROCS = 4
 end
 MIN_PROCS = 1
