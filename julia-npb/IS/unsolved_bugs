@@ -1,6 +1,0 @@
-6/4/17	1.Compiletime is contained in npbparams.jl but print_results doesn't use this info.
-		
-		2.To use make command, we have have to delete npbparams.jl manually frst.
-
-		3.Print_results will print the benchmark result as "successful" if passed_verification == true. However the type
-		of passed_verification is Int.
