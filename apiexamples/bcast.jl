@@ -1,4 +1,7 @@
 import MPI
+function tt(buffer)
+	MPI.Bcast!(buffer,length(buffer),1,comm)
+end
 MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
@@ -7,19 +10,15 @@ if rank == 0
 elseif rank == 1
 	buffer = Int32[2,4,6]
 end
-startt = time()
 #ccall((:ctimer_start,"libcclock"),Void,())
-MPI.Bcast!(buffer,length(buffer),1,comm)
-#cputime = ccall((:ctimer_stop,"libcclock"),Float64,())
-endt = time()
-cputime = endt - startt
-if rank == 1
-	sleep(2)
+for i = 1:10
+	tt(buffer)
 end
-@printf("%02d: buffer = ",rank)
-println(buffer)
-MPI.Finalize()
 if rank == 0
-	println("cputime elapsed:	",cputime)
+	@time tt(buffer)
+else
+	tt(buffer)
 end
+#cputime = ccall((:ctimer_stop,"libcclock"),Float64,())
+MPI.Finalize()
 

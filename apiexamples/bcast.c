@@ -1,11 +1,12 @@
 #include<stdio.h>
 #include<mpi.h>
 #include<time.h>
+#include<sys/time.h>
 
 int main()
 {
 	//clock_t start,end;
-	time_t start,end;
+	struct timespec start,end;
 	MPI_Init(NULL,NULL);
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -27,13 +28,13 @@ int main()
 		buffer[2] = 6;
 	}
 	//start = clock();
-	start = time(NULL);
+	clock_gettime(CLOCK_REALTIME,&start);
 	MPI_Bcast(buffer,3,MPI_INT,1,MPI_COMM_WORLD);
 	//end = clock();
-	end = time(NULL);
+	clock_gettime(CLOCK_REALTIME,&end);
 	MPI_Finalize();
 	if(rank == 0)
 		//printf("cputime elapsed:	%f\n",((double)(end - start))/CLOCKS_PER_SEC);
-		printf("cputime elapsed:	%ld\n",(end - start));
+		printf("cputime elapsed:	%ld\n",1000000000L * (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec));
 	return 0;
 }
